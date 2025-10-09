@@ -1,11 +1,10 @@
 # services/reporting_service.py
 
 import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from aiogram import Bot
 import re
-import io
+import json  # ❗️ ДОДАНО
+from sqlalchemy.orm import Session
+from aiogram import Bot
 
 # Імпорт компонентів з нашої архітектури
 from ..database.models import User, Intern, TestSession, UserAnswer, Question, AnswerOption
@@ -13,7 +12,6 @@ from ..core.config import settings
 from ..database.session import get_db
 
 # --- ІМПОРТИ ДЛЯ GOOGLE DOCS API ---
-# Встановіть: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -30,11 +28,16 @@ class ReportingService:
         self.bot = bot
         self.docs_service = self._authenticate_google_docs()
 
+    # ❗️❗️❗️ ОСЬ ГОЛОВНА ЗМІНА ❗️❗️❗️
     def _authenticate_google_docs(self):
         """Аутентифікація для доступу до Google Docs API."""
         try:
-            creds = Credentials.from_service_account_file(
-                settings.GOOGLE_CREDENTIALS_FILE,
+            # Завантажуємо дані для автентифікації зі змінної оточення
+            credentials_info = json.loads(settings.GOOGLE_CREDENTIALS_JSON)
+
+            # Створюємо об'єкт Credentials зі словника, а не з файлу
+            creds = Credentials.from_service_account_info(
+                credentials_info,
                 scopes=DOCS_SCOPE
             )
             return build('docs', 'v1', credentials=creds)
@@ -146,7 +149,8 @@ class ReportingService:
         report_parts.append("📑 ЗВІТ ПРО ПРОХОДЖЕННЯ ТЕСТУ\n\n")
         report_parts.append(f"👤 Стажер: {intern_name}\n")
         report_parts.append(f"🆔 Telegram ID: {user.telegram_id}\n")
-        report_parts.append(f"📅 Дата тестування: {session.end_time.strftime('%Y-%m-%d %H:%M:%S') if session.end_time else '—'}\n")
+        report_parts.append(
+            f"📅 Дата тестування: {session.end_time.strftime('%Y-%m-%d %H:%M:%S') if session.end_time else '—'}\n")
         report_parts.append(f"⭐ Результат: {score}/{max_score} ({percentage}%)\n")
         report_parts.append(f"⏱️ Час: {time_spent}\n\n")
 
@@ -226,6 +230,10 @@ class ReportingService:
 
         if telegram_report and admin_id:
             try:
+                # Переконуємось, що довжина звіту не перевищує ліміт Telegram
+                if len(telegram_report) > 4096:
+                    telegram_report = telegram_report[:4090] + "\n(...)"
+
                 await self.bot.send_message(
                     chat_id=admin_id,
                     text=telegram_report,
