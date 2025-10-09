@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
 
     # --- 3. Налаштування Планувальника (Scheduling) ---
-    SCHEDULE_TIME: time = time(hour=16, minute=42, second=0)
+    SCHEDULE_TIME: time = time(hour=19, minute=1, second=0)
 
     # --- 4. Налаштування Google Sheets/Drive ---
     # 🔒 ЗМІНЕНО: Тепер завантажуємо вміст credentials.json з цієї змінної, а не з файлу.
