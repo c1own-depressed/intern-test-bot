@@ -92,7 +92,7 @@ async def setup_system():
     scheduler.add_job(
         scheduled_import_interns,
         'cron',
-        hour=18,  # Можеш змінити час, якщо потрібно
+        hour=15,  # Можеш змінити час, якщо потрібно
         minute=59,
         id='google_sheets_update'
     )
@@ -102,7 +102,7 @@ async def setup_system():
     scheduler.add_job(
         scheduled_import_questions,
         'cron',
-        hour=18,
+        hour=15,
         minute=0,
         id='google_docs_update'
     )
