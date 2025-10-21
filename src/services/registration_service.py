@@ -1,7 +1,9 @@
+import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-# Імпорт моделей тут може викликати циклічну залежність,
-# тому імпортуємо їх всередині функцій, або переносимо в 'models.py'
+from sqlalchemy.exc import IntegrityError  # <<< 1. ДОДАНО ІМПОРТ
+
+# Припускаємо, що ваші моделі знаходяться на рівень вище у 'database/models'
 from ..database.models import User, Intern
 
 
@@ -19,7 +21,6 @@ class RegistrationService:
     def get_intern_name_by_telegram_id(self, telegram_id: int) -> str:
         """
         Перевіряє, чи користувач вже зареєстрований, і повертає його повне ім'я.
-        Використовується в хендлері /start.
         """
         user = (
             self.db.query(User)
@@ -30,29 +31,17 @@ class RegistrationService:
         if user:
             return user.intern.full_name
 
-        # Якщо користувача не знайдено, кидаємо помилку, щоб почати реєстрацію
         raise RegistrationError("Користувача не знайдено.")
 
     def register_user(self, telegram_id: int, telegram_tag: str | None, pin: str) -> str:
         """
         Реєструє користувача за ПІНом, виконуючи всі перевірки.
-
-        Args:
-            telegram_id: Унікальний ID користувача Telegram.
-            telegram_tag: Тег користувача Telegram (може бути None).
-            pin: ПІН стажера для ідентифікації.
-
-        Returns:
-            Повне ім'я стажера після успішної реєстрації.
-
-        Raises:
-            RegistrationError: Якщо перевірка не пройдена.
         """
         # 1. ПЕРЕВІРКА: Чи не зареєстрований цей Telegram ID вже
         if self.db.query(User).filter(User.telegram_id == telegram_id).first():
             raise RegistrationError("Цей Telegram-акаунт вже зареєстровано.")
 
-        # 2. ПОШУК: Знайти стажера за ПІНом (порівняння без урахування регістру)
+        # 2. ПОШУК: Знайти стажера за ПІНом
         intern_record = (
             self.db.query(Intern)
             .filter(func.lower(Intern.pin) == func.lower(pin))
@@ -76,6 +65,15 @@ class RegistrationService:
             self.db.add(new_user)
             self.db.commit()
             return intern_record.full_name
-        except Exception:
+
+        except IntegrityError as e:  # <<< 2. ЯВНА ОБРОБКА IntegrityError
             self.db.rollback()
+            # Логування повної помилки `e` тут дуже рекомендоване!
+            print(f"Помилка IntegrityError при реєстрації: {e}")
+            raise RegistrationError("Помилка цілісності даних. Цей ПІН або Telegram ID вже використовується.")
+
+        except Exception as e:
+            self.db.rollback()
+            # Логування повної помилки `e` тут дуже рекомендоване!
+            print(f"Невідома внутрішня помилка при реєстрації: {e}")
             raise RegistrationError("Виникла внутрішня помилка при реєстрації. Спробуйте пізніше.")

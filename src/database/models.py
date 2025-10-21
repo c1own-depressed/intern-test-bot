@@ -1,5 +1,6 @@
 import datetime
 from sqlalchemy import Column, Integer, String, Boolean, Date, DateTime, ForeignKey, Text
+from sqlalchemy import BigInteger
 from sqlalchemy.orm import relationship, declarative_base
 
 # База для декларативного визначення моделей
@@ -24,7 +25,8 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, index=True)
-    telegram_id = Column(Integer, unique=True, nullable=False, index=True)  # ID користувача Telegram
+    # Змінено Integer на BigInteger для підтримки Telegram ID > 2.1 млрд.
+    telegram_id = Column(BigInteger, unique=True, nullable=False, index=True)  # ID користувача Telegram
     telegram_tag = Column(String, nullable=True)  # ТЕГ (username)
 
     # Зв'язок 1:1 з Intern. pin стає унікальним, оскільки він тут використовується
@@ -67,6 +69,8 @@ class TestSession(Base):
     __tablename__ = 'test_sessions'
 
     id = Column(Integer, primary_key=True, index=True)
+    # User ID в цій таблиці походить з таблиці users, де id має тип Integer,
+    # тому тут можна залишити Integer.
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)  # Користувач
 
     start_time = Column(DateTime, default=datetime.datetime.utcnow)
