@@ -1,7 +1,7 @@
-# src/core/config.py
-
 from datetime import time
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -22,7 +22,8 @@ class Settings(BaseSettings):
     DATABASE_URL: str
 
     # --- 3. Налаштування Планувальника (Scheduling) ---
-    SCHEDULE_TIME: time = time(hour=16, minute=1, second=0)
+    # 🕒 ЗМІНЕНО: Час розсилки тепер встановлено для київської часової зони.
+    SCHEDULE_TIME: time = time(hour=16, minute=1, second=0, tzinfo=ZoneInfo("Europe/Kiev"))
 
     # --- 4. Налаштування Google Sheets/Drive ---
     # 🔒 ЗМІНЕНО: Тепер завантажуємо вміст credentials.json з цієї змінної, а не з файлу.

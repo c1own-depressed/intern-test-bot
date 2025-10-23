@@ -2,6 +2,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from aiogram.client.default import DefaultBotProperties
+from zoneinfo import ZoneInfo  # 👈 1. Імпорт для роботи з часовими зонами
 
 from .config import settings
 from ..database.session import init_db, SessionLocal
@@ -9,7 +10,6 @@ from ..handlers.registration import registration_router
 from ..handlers.common import common_router
 from ..handlers.testing import testing_router
 from ..services.testing_service import TestingSchedulerWrapper
-# ❗️ 1. ІМПОРТУЄМО ОБИДВА ІМПОРТЕРИ
 from ..utils.google_doc_importer import GoogleDocsImporter
 from ..utils.google_sheet_importer import import_interns_data
 
@@ -22,7 +22,9 @@ bot = Bot(
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 bot.storage = storage
-scheduler = AsyncIOScheduler()
+
+# 🕒 ЗМІНЕНО: Планувальник тепер налаштований на київську часову зону.
+scheduler = AsyncIOScheduler(timezone=ZoneInfo("Europe/Kiev"))
 testing_wrapper = TestingSchedulerWrapper(bot=bot)
 
 
@@ -38,7 +40,6 @@ def scheduled_import_interns():
         print(f"   [Scheduled Import] 🔴 ПОМИЛКА ІМПОРТУ СТАЖЕРІВ: {e}")
 
 
-# ❗️ 2. НОВА ФУНКЦІЯ: Обгортка для запланованого імпорту питань
 def scheduled_import_questions():
     """Обгортка для запланованого імпорту питань з Google Docs."""
     print("🔄 Запланований імпорт: Оновлення питань з Google Docs...")
@@ -69,10 +70,8 @@ async def setup_system():
     # 2.2. Первинний імпорт даних під час старту
     print("   [DB] Спроба первинного імпорту даних...")
     try:
-        # Імпорт стажерів
         import_interns_data(SessionLocal)
         print("   [DB] Дані стажерів успішно імпортовані.")
-        # Імпорт питань
         docs_importer = GoogleDocsImporter()
         with SessionLocal() as db:
             docs_importer.import_questions(db)
@@ -92,13 +91,13 @@ async def setup_system():
     scheduler.add_job(
         scheduled_import_interns,
         'cron',
-        hour=15,  # Можеш змінити час, якщо потрібно
+        hour=15,
         minute=59,
         id='google_sheets_update'
     )
-    print("   [Scheduler] Оновлення стажерів заплановано на 18:59.")
+    print("   [Scheduler] Оновлення стажерів заплановано на 15:59 (за Києвом).")
 
-    # ❗️ 3. НОВЕ ЗАВДАННЯ: Планувальник для оновлення питань о 18:00
+    # Завдання для оновлення питань
     scheduler.add_job(
         scheduled_import_questions,
         'cron',
@@ -106,7 +105,7 @@ async def setup_system():
         minute=0,
         id='google_docs_update'
     )
-    print("   [Scheduler] Оновлення питань заплановано на 18:00.")
+    print("   [Scheduler] Оновлення питань заплановано на 15:00 (за Києвом).")
 
     # Завдання для запуску тестів
     scheduler.add_job(
@@ -119,7 +118,7 @@ async def setup_system():
 
     # 2.5. Запуск Планувальника
     scheduler.start()
-    print(f"   [Scheduler] Планувальник запущено. Тести заплановано на {settings.SCHEDULE_TIME}.")
+    print(f"   [Scheduler] Планувальник запущено. Тести заплановано на {settings.SCHEDULE_TIME.strftime('%H:%M')} (за Києвом).")
 
     print("✅ Ініціалізація завершена.")
 
